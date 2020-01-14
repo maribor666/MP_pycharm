@@ -58,6 +58,9 @@ class NeuralNetwork:
         for epoch in range(epoches):
             for xi, yi in zip(X, Y):
                 self._forward(xi)
+                # add backprop
+                # update weights
+                # then del 'break' and increase epoches to like 100
                 break
 
     @staticmethod
