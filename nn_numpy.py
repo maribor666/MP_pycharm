@@ -15,10 +15,29 @@ def main():
 
     # feature preprocess should be
     # here
+    # pprint(X[0])
+    X = feature_scale(X)
+    # pprint(X[0])
+
+    # divide on train and test dataset
+    # mb use cross-validation
+
     np.random.seed(42)
     nn = NeuralNetwork()
-    nn.fit(X, Y, epoches=100)
+    nn.fit(X, Y, epoches=1)
+    X_test = X
+    Y_predicted = nn.predict(X_test)
+    # pprint(Y_predicted)
 
+    # evaluate accuracy here
+
+    total = len(Y)
+    correct_answers = 0
+    for yi, yi_pred in zip(Y, Y_predicted):
+        # print(yi, yi_pred)
+        if yi == yi_pred:
+            correct_answers += 1
+    print(correct_answers / total)
 
 class NeuralNetwork:
     def __init__(self, hidden_layers=2, epoches=100):
@@ -35,7 +54,7 @@ class NeuralNetwork:
             prev_a = self.A[-1]
             res = np.matmul(prev_a, weight)
             res = np.insert(res, 0, 1)
-            res = np.where((res >= 0.5), 1, 0)  # values after activation func
+            # res = np.where((res >= 0.5), 1, 0)  # values after activation func
             self.A.append(res)
         # calc a for output layer
         a_output_layer = np.matmul(self.A[-1], self.weights[-1])
@@ -71,11 +90,11 @@ class NeuralNetwork:
         self.weights = new_weights
 
     def fit(self, X, Y, epoches=100):
-        print('shape of X:', X.shape)
-        print('shape of Y:', Y.shape)
+        # print('shape of X:', X.shape)
+        # print('shape of Y:', Y.shape)
         self._init_weight(X.shape[1])
-        for w, i in zip(self.weights, range(len(self.weights))):
-            print('shape of weight', i, ':', w.shape)
+        # for w, i in zip(self.weights, range(len(self.weights))):
+        #     print('shape of weight', i, ':', w.shape)
 
         for epoch in range(epoches):
             for xi, yi in zip(X, Y):
@@ -83,6 +102,15 @@ class NeuralNetwork:
                 self._backprop(xi, yi)
                 self._update_weights()
 
+        # pprint(self.weights)
+
+    def predict(self, X):
+        predicted_vals = []
+        for xi in X:
+            self._forward(xi)
+            res = self.A[-1]
+            predicted_vals.append(res)
+        return predicted_vals
 
     @staticmethod
     def _activ(val):
@@ -95,6 +123,11 @@ class NeuralNetwork:
         # creating weights for output layer
         self.weights.append(np.random.rand(rows + 1, 1))
 
+
+# it can be in another file
+def feature_scale(X, mode='standart'):
+    if mode == 'standart':
+        return (X - X.mean(axis=0)) / X.std(axis=0)
 
 if __name__ == '__main__':
     main()
