@@ -17,13 +17,14 @@ def main():
     # here
     np.random.seed(42)
     nn = NeuralNetwork()
-    nn.fit(X, Y, epoches=1)
+    nn.fit(X, Y, epoches=100)
 
 
 class NeuralNetwork:
     def __init__(self, hidden_layers=2, epoches=100):
         self.epoches = epoches
         self.weights = []
+        self.deltas = []
         self.A = []
         self.hidden_layers = hidden_layers
 
@@ -40,28 +41,48 @@ class NeuralNetwork:
         a_output_layer = np.matmul(self.A[-1], self.weights[-1])
         a_output_layer = self._activ(a_output_layer)
         self.A.append(a_output_layer)
-        pprint(self.A)
+        # pprint(self.A)
 
-    def _backprop(self):
-        pass
+    def _backprop(self, xi, yi):
+        delta_last = self.A[-1] - yi
+        self.deltas.append(delta_last)
+        # print("delta last:", delta_last)
+        rev_weights = self.weights[::-1]
+        for ai, weight, _ in zip(self.A[:-1][::-1], rev_weights, range(self.hidden_layers)):
+            prev_delta = self.deltas[0]
+            g_z = ai * (1 - ai)
+            # print('ai', ai)
+            # print('g_z', g_z, g_z.shape)
+            temp = weight.T * prev_delta
+            res = temp * g_z
+            self.deltas.insert(0, res)
+        # for el in self.weights:
+        #     print(el.shape)
 
     def _update_weights(self):
-        pass
+        new_weights = []
+        for weight, ai, delta_i, _ in zip(self.weights, self.A, self.deltas, range(self.hidden_layers)):
+            # print(weight.shape, ai.shape, delta_i.shape)
+            new_weight = weight + np.matmul(ai, delta_i.T)
+            # print(new_weight.shape)
+            new_weights.append(new_weight)
+        last_new_weight = self.weights[-1] + self.A[-1] * self.deltas[-1]
+        new_weights.append(last_new_weight)
+        self.weights = new_weights
 
     def fit(self, X, Y, epoches=100):
         print('shape of X:', X.shape)
         print('shape of Y:', Y.shape)
         self._init_weight(X.shape[1])
-        for w in self.weights:
-            print(w.shape)
+        for w, i in zip(self.weights, range(len(self.weights))):
+            print('shape of weight', i, ':', w.shape)
 
         for epoch in range(epoches):
             for xi, yi in zip(X, Y):
                 self._forward(xi)
-                # add backprop
-                # update weights
-                # then del 'break' and increase epoches to like 100
-                break
+                self._backprop(xi, yi)
+                self._update_weights()
+
 
     @staticmethod
     def _activ(val):
