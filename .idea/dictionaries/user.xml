@@ -1,8 +1,11 @@
 <component name="ProjectDictionaryState">
   <dictionary name="user">
     <words>
+      <w>activ</w>
       <w>backprop</w>
       <w>epoches</w>
+      <w>softmax</w>
+      <w>softmaxes</w>
       <w>standart</w>
       <w>vals</w>
     </words>
