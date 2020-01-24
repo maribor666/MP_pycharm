@@ -1,5 +1,3 @@
-from pprint import pprint
-
 import numpy as np
 import pandas as pd
 df_path = './data.csv'
@@ -16,13 +14,29 @@ def main():
     np.random.seed(1)
     nn = NeuralNetwork(epoches=3)
     distributions = nn.fit(X, Y)
+    summa = 0
+    for yi, pred in zip(Y, distributions):
+        if yi == 1:
+            yi_vec = np.array([1, 0])
+        else:
+            yi_vec = np.array([0, 1])
+        if yi == 1:
+            summa += yi_vec @ np.log(pred)
+        else:
+            summa += (1 - yi_vec) @ np.log(1 - pred)
+        print(summa)
+        break
+    # print(Y.shape)
+    examples = Y.shape[0]
+    E =  - summa / examples
+    print(E)
+
 
 
 class NeuralNetwork:
     def __init__(self, hidden_layers=2, epoches=100, activ_type='sigmoid'):
         self.hidden_layers = hidden_layers
         self.epoches = epoches
-        self.epoch = None
         self.A = []
         self.weights = []
         self.m = 0
@@ -103,15 +117,20 @@ class NeuralNetwork:
         self._init_weights(X.shape[1])
         self._init_deltas_big(X.shape[1])
         self.m = X.shape[0]
+        store = False
         for epoch in range(self.epoches):
-            self.epoch = epoch
+            if epoch == self.epoches - 1:
+                store = True
             for xi, yi in zip(X, Y):
                 self._forward(xi)
                 # store self.A[-1] only for last epoch
+                if store:
+                    self.history.append(self._softmax(self.A[-1]))
                 self._backprop(yi)
                 self._update_weights()
         # return softmaxes for all A[-1] values. save A[-1] in self.history or etc
-        return 1
+        # print(len(self.history))
+        return self.history
 
     def _softmax(self, x):
         b = x.max()  # trick for numerical stability https://bit.ly/36lGDaN
