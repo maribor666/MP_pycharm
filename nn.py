@@ -24,12 +24,12 @@ def main():
             summa += yi_vec @ np.log(pred)
         else:
             summa += (1 - yi_vec) @ np.log(1 - pred)
-        print(summa)
-        break
+        # print(summa)
+        # break
     # print(Y.shape)
     examples = Y.shape[0]
-    E =  - summa / examples
-    print(E)
+    E = - summa / examples
+    print('E:', E)
 
 
 
@@ -71,6 +71,7 @@ class NeuralNetwork:
             next_a = self._activ(next_a)
             self.A.append(next_a)
         last_a = self.weights[-1].T @ self.A[-1]
+        last_a = self._softmax(last_a)
         self.A.append(last_a)
 
     def _backprop(self, yi):
@@ -124,10 +125,13 @@ class NeuralNetwork:
             for xi, yi in zip(X, Y):
                 self._forward(xi)
                 # store self.A[-1] only for last epoch
+                # print(self.A[-1])
                 if store:
                     self.history.append(self._softmax(self.A[-1]))
                 self._backprop(yi)
                 self._update_weights()
+                # break
+            # break
         # return softmaxes for all A[-1] values. save A[-1] in self.history or etc
         # print(len(self.history))
         return self.history
