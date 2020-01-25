@@ -33,6 +33,7 @@ def main():
 class NeuralNetwork:
     def __init__(self, hidden_layers=2, epoches=100):
         self.epoches = epoches
+        self.epoch = 0
         self.weights = []
         self.deltas = []
         self.A = []
@@ -77,10 +78,12 @@ class NeuralNetwork:
         self._init_weight(X.shape[1])
 
         for epoch in range(epoches):
+            self.epoch = epoch
             for xi, yi in zip(X, Y):
                 self._forward(xi)
                 self._backprop(yi)
                 self._update_weights()
+
 
     def predict(self, X):
         predicted_vals = []

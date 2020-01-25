@@ -1,3 +1,4 @@
+from pprint import pprint
 import numpy as np
 import pandas as pd
 df_path = './data.csv'
@@ -12,8 +13,11 @@ def main():
     # divide on train and test dataset
     # mb use cross-validation
     np.random.seed(1)
-    nn = NeuralNetwork(epoches=3)
-    distributions = nn.fit(X, Y)
+    nn = NeuralNetwork(epoches=10)
+    nn.fit(X, Y)
+    # preds = nn.predict(X)
+    distributions = nn.history
+    # pprint(nn.history)
     summa = 0
     for yi, pred in zip(Y, distributions):
         if yi == 1:
@@ -24,13 +28,9 @@ def main():
             summa += yi_vec @ np.log(pred)
         else:
             summa += (1 - yi_vec) @ np.log(1 - pred)
-        # print(summa)
-        # break
-    # print(Y.shape)
     examples = Y.shape[0]
     E = - summa / examples
-    print('E:', E)
-
+    print(E)
 
 
 class NeuralNetwork:
@@ -47,6 +47,7 @@ class NeuralNetwork:
         self._activ = np.vectorize(activ)
         self.lam = 0.01  # coefficient for regularization
         self.lr = 0.05  # learning rate
+        self.store = False
 
     def _init_weights(self, cols):
         for _ in range(self.hidden_layers):
@@ -55,6 +56,7 @@ class NeuralNetwork:
         self.weights.append(np.random.rand(cols + 1, 2))
 
     def _init_deltas_big(self, cols):
+        self.deltas_big = []
         for _ in range(self.hidden_layers):
             delta_big_i = np.zeros((cols + 1, cols))
             self.deltas_big.append(delta_big_i)
@@ -71,7 +73,11 @@ class NeuralNetwork:
             next_a = self._activ(next_a)
             self.A.append(next_a)
         last_a = self.weights[-1].T @ self.A[-1]
-        last_a = self._softmax(last_a)
+        # last_a = self._softmax(last_a)
+        if self.store:
+            self.history.append(self._softmax(last_a))
+        last_a = self._activ(last_a)
+        # print(last_a)
         self.A.append(last_a)
 
     def _backprop(self, yi):
@@ -79,8 +85,8 @@ class NeuralNetwork:
             yi_vec = np.array([1, 0])[np.newaxis].T
         else:
             yi_vec = np.array([0, 1])[np.newaxis].T
-        last_a_softmax = self._softmax(self.A[-1])
-        last_delta_small = last_a_softmax - yi_vec
+        last_delta_small = self.A[-1] - yi_vec
+        # print(last_delta_small)
         self.deltas_small = [last_delta_small]
         rev_weights = self.weights[::-1]
         rev_A = self.A[1::-1]
@@ -95,7 +101,7 @@ class NeuralNetwork:
             delta_small = temp1 * temp2
             self.deltas_small.insert(0, delta_small)
 
-    def _update_weights(self):
+    def _update_deltas_big(self):
         A = self.A[:-1]
         new_big_deltas = []
         for ai, delta_small_i, delta_big_i, _ in zip(A, self.deltas_small, self.deltas_big, range(self.hidden_layers + 1)):
@@ -107,6 +113,8 @@ class NeuralNetwork:
             new_big_delta = delta_big_i + res
             new_big_deltas.append(new_big_delta)
         self.deltas_big = new_big_deltas
+
+    def _update_weights(self):
         new_weights = []
         for weight, delta_big_i in zip(self.weights, self.deltas_big):
             D = delta_big_i / self.m + self.lam * weight  # regularization here
@@ -116,25 +124,29 @@ class NeuralNetwork:
 
     def fit(self, X, Y):
         self._init_weights(X.shape[1])
-        self._init_deltas_big(X.shape[1])
         self.m = X.shape[0]
-        store = False
         for epoch in range(self.epoches):
+            self._init_deltas_big(X.shape[1])
             if epoch == self.epoches - 1:
-                store = True
+                self.store = True
             for xi, yi in zip(X, Y):
                 self._forward(xi)
-                # store self.A[-1] only for last epoch
-                # print(self.A[-1])
-                if store:
-                    self.history.append(self._softmax(self.A[-1]))
                 self._backprop(yi)
-                self._update_weights()
-                # break
-            # break
-        # return softmaxes for all A[-1] values. save A[-1] in self.history or etc
-        # print(len(self.history))
-        return self.history
+                self._update_deltas_big()
+            self._update_weights()
+        print(self.A[-1])
+        print(self.weights[-1])
+
+    def predict(self, X):
+        res = []
+        print('@@@@@@@@@@@@@@@')
+        for xi in X:
+            self._forward(xi)
+            res.append(self.A[-1])
+            # print(self.A[-1])
+            break
+        # print(res)
+        return res
 
     def _softmax(self, x):
         b = x.max()  # trick for numerical stability https://bit.ly/36lGDaN
@@ -142,10 +154,12 @@ class NeuralNetwork:
         return y / y.sum()
 
 
-def activ(val, mode='sigmoid'):
+def activ(x, mode='sigmoid'):
     # add another activation functions
     if mode == 'sigmoid':
-        return 1 if val >= 0.5 else 0
+        return 1 if x >= 0.5 else 0
+    if mode == 'relu':
+        return x if x > 0 else 0
 
 
 def feature_scale(X, mode='standart'):
