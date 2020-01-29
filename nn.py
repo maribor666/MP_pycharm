@@ -16,21 +16,21 @@ def main():
     nn = NeuralNetwork(epoches=10)
     nn.fit(X, Y)
     # preds = nn.predict(X)
-    distributions = nn.history
-    # pprint(nn.history)
-    summa = 0
-    for yi, pred in zip(Y, distributions):
-        if yi == 1:
-            yi_vec = np.array([1, 0])
-        else:
-            yi_vec = np.array([0, 1])
-        if yi == 1:
-            summa += yi_vec @ np.log(pred)
-        else:
-            summa += (1 - yi_vec) @ np.log(1 - pred)
-    examples = Y.shape[0]
-    E = - summa / examples
-    print(E)
+    # distributions = nn.history
+    # # pprint(nn.history)
+    # summa = 0
+    # for yi, pred in zip(Y, distributions):
+    #     if yi == 1:
+    #         yi_vec = np.array([1, 0])
+    #     else:
+    #         yi_vec = np.array([0, 1])
+    #     if yi == 1:
+    #         summa += yi_vec @ np.log(pred)
+    #     else:
+    #         summa += (1 - yi_vec) @ np.log(1 - pred)
+    # examples = Y.shape[0]
+    # E = - summa / examples
+    # print('cross-enropy error', E)
 
 
 class NeuralNetwork:
@@ -77,7 +77,8 @@ class NeuralNetwork:
         if self.store:
             self.history.append(self._softmax(last_a))
         last_a = self._activ(last_a)
-        # print(last_a)
+        if self.store:
+            pprint(last_a[:21])
         self.A.append(last_a)
 
     def _backprop(self, yi):
@@ -96,7 +97,7 @@ class NeuralNetwork:
                 temp1 = weight @ next_delta_small
             else:
                 temp1 = weight.T @ next_delta_small
-                temp1 = np.insert(temp1, 0, 1)[np.newaxis].T
+                temp1 = np.insert(temp1, 0, 0)[np.newaxis].T
             temp2 = ai * (1 - ai)
             delta_small = temp1 * temp2
             self.deltas_small.insert(0, delta_small)
@@ -117,25 +118,27 @@ class NeuralNetwork:
     def _update_weights(self):
         new_weights = []
         for weight, delta_big_i in zip(self.weights, self.deltas_big):
-            D = delta_big_i / self.m + self.lam * weight  # regularization here
+            D = delta_big_i / self.m + self.lam * (weight ** 2)  # regularization here
             new_weight = weight + self.lr * D
             new_weights.append(new_weight)
         self.weights = new_weights
 
-    def fit(self, X, Y):
+    def fit(self, X, Y, batch_size=5):
         self._init_weights(X.shape[1])
         self.m = X.shape[0]
         for epoch in range(self.epoches):
             self._init_deltas_big(X.shape[1])
             if epoch == self.epoches - 1:
                 self.store = True
+                print('last epoch num:', epoch)
             for xi, yi in zip(X, Y):
                 self._forward(xi)
                 self._backprop(yi)
                 self._update_deltas_big()
-            self._update_weights()
-        print(self.A[-1])
-        print(self.weights[-1])
+                self._update_weights()
+        # print(self.A[-1])
+        # print(self.weights[-1])
+
 
     def predict(self, X):
         res = []
@@ -158,6 +161,7 @@ def activ(x, mode='sigmoid'):
     # add another activation functions
     if mode == 'sigmoid':
         return 1 if x >= 0.5 else 0
+        # return 1 / (1 - np.exp(-x))
     if mode == 'relu':
         return x if x > 0 else 0
 
