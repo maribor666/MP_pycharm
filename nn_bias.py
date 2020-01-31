@@ -11,7 +11,7 @@ def main():
     Y = np.where((Y == 'M'), 1, 0)
     X = feature_scale(X, mode='standart')
     # X = X[:, :3]
-    # split to rain and test
+    # split to train ant test
     np.random.seed(42)
     nn = NN()
     nn.fit(X, Y)
@@ -36,7 +36,6 @@ class NN:
         self.A = []
         self.weights = []
         self.layers = layers  # number hidden layers
-        self.bias = []
         self.cols = 0  # columns in dataset
         self._activ = np.vectorize(activ)
         self.deltas = []
@@ -52,7 +51,6 @@ class NN:
         self.m, self.cols = X.shape
         self.epoches = epoches
         self._init_weights()
-        self._init_bias()
         for epoch in range(self.epoches):
             if epoch == self.epoches - 1:
                 self.store = True
@@ -83,36 +81,50 @@ class NN:
         rev_weights = self.weights[::-1]
         rev_A = self.A[:-1]
         rev_A = rev_A[::-1]
-        for weight, ai in zip(rev_weights, rev_A):
+        for weight, ai, _ in zip(rev_weights, rev_A, range(len(rev_A))):
             next_delta = self.deltas[0]
+            # print(_)
+            # print(weight)
+            # print(next_delta)
+            # if _ == 0:
+            #     temp1 = weight @ next_delta
+            # else:
+            #     temp1 = weight.T @ next_delta
             temp1 = weight @ next_delta
+            # print(temp1)
             temp2 = ai * (1 - ai)
             res = temp1 * temp2
+            # print(res)
             self.deltas.insert(0, res)
+            # print('------------')
 
         for ai, delta_i, _ in zip(self.A, self.deltas[1:], range(len(self.d))):
             res = delta_i[np.newaxis].T @ ai[np.newaxis]
             self.d[_] += res.T
 
     def _forward(self, xi):
-        self.A = [xi]
-        for weight, bias_i in zip(self.weights, self.bias):
+        a_first = np.insert(xi, self.cols, 1)
+        self.A = [a_first]
+        for weight, _ in zip(self.weights, range(len(self.weights))):
             prev_a = self.A[-1]
-            res = prev_a @ weight + bias_i
+            res = prev_a @ weight
             res = self._activ(res)
             self.A.append(res)
-
-    def _init_bias(self):
-        self.bias = np.random.randn(self.cols)
+        # print('A:')
+        # pprint(self.A)
+        # print('------------')
 
     def _init_weights(self):
         weights = []
         for _ in range(self.layers):
-            weight = np.random.randn(self.cols, self.cols)
+            weight = np.random.randn(self.cols + 1, self.cols + 1)
             weights.append(weight)
-        last_weight = np.random.randn(self.cols, 2)
+        last_weight = np.random.randn(self.cols + 1, 2)
         weights.append(last_weight)
         self.weights = weights
+        # print('weights')
+        # pprint(weights)
+        # print('------------')
 
     def _init_d(self):
         d = []
@@ -120,6 +132,9 @@ class NN:
             di = np.zeros(weight.shape)
             d.append(di)
         self.d = d
+        # print('d')
+        # pprint(self.d)
+        # print('------------')
 
     def _softmax(self, x):
         s = np.exp(x).sum()
@@ -138,8 +153,6 @@ def feature_scale(X, mode='standart'):
 def activ(x, mode='sigmoid'):
     if mode == 'sigmoid':
         return 1 / (1 + np.exp(-x))
-    if mode == 'relu':
-        return x if x > 0 else 0
 
 
 if __name__ == '__main__':
