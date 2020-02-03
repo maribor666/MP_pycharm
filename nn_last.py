@@ -11,13 +11,17 @@ def main():
     Y = np.where((Y == 'M'), 1, 0)
     X = feature_scale(X, mode='standart')
     # X = X[:, :3]
-    # split to rain and test
+    # split to train and test
+    split_index = round(X.shape[0] * 0.8) + 1
+    X_train, X_test = X[:split_index], X[split_index:]
+    Y_train, Y_test = Y[:split_index], Y[split_index:]
     np.random.seed(42)
     nn = NN()
-    nn.fit(X, Y)
+    nn.fit(X_train, Y_train)
+    preds = nn.predict(X_test)
     correct = 0
     b_num = 0
-    for pred, yi in zip(nn.history, Y):
+    for pred, yi in zip(preds, Y_test):
         if pred[0] > pred[1]:
             val = 1
         else:
@@ -25,9 +29,17 @@ def main():
             b_num += 1
         if val == yi:
             correct += 1
-    acc = correct / Y.shape[0]
+    N = Y_test.shape[0]
+    acc = correct / N
     print(acc)
-    print(b_num)
+    error = 0
+    for pred, yi in zip(preds, Y_test):
+        if yi == 1:
+            error += np.array([1, 0]) @ np.log(pred)
+        else:
+            error += (1 - np.array([0, 1])) @ np.log(1 - pred)
+    cross_entropy = -error / N
+    print('cross-ectropy error:', cross_entropy)
 
 
 class NN:
@@ -42,35 +54,52 @@ class NN:
         self.deltas = []
         self.m = None  # number of examples
         self.d = None
-        self.lamb = 0.0001
-        self.lr = 0.001
+        self.lamb = 0.1
+        self.lr = 0.05
         self.store = False
         self.history = []
         self.d = []
+        self._batch_size = 5
 
-    def fit(self, X, Y, epoches=70):
+    def predict(self, X_test):
+        res = []
+        for xi in X_test:
+            self._forward(xi)
+            res.append(self._softmax(self.A[-1]))
+        return res
+
+    def fit(self, X, Y, epoches=1, batch_size=5):
         self.m, self.cols = X.shape
+        self._batch_size = batch_size
         self.epoches = epoches
         self._init_weights()
         self._init_bias()
+        start_idx, end_idx = 0, 0
         for epoch in range(self.epoches):
             if epoch == self.epoches - 1:
                 self.store = True
-            self._init_d()
-            for xi, yi in zip(X, Y):
-                self._forward(xi)
-                self._backprop(yi)
-                if self.store:
-                    self.history.append(self._softmax(self.A[-1]))
-                # break
-            self._update_weights()
+            for _ in range(X.shape[0] // batch_size):
+                self._init_d()
+                # try batch
+                X_batch = X[start_idx:end_idx + batch_size]
+                Y_batch = Y[start_idx:end_idx + batch_size]
+                for xi, yi in zip(X_batch, Y_batch):
+                    self._forward(xi)
+                    self._backprop(yi)
+                    if self.store:
+                        self.history.append(self._softmax(self.A[-1]))
+                    # break
+                self._update_weights()
+                start_idx += batch_size
+                end_idx += batch_size
             # break
 
     def _update_weights(self):
         new_weights = []
         for di, weight in zip(self.d, self.weights):
-            new_weight = weight + self.lr * (di / self.m + self.lamb * weight)
+            new_weight = weight - self.lr * (di / self._batch_size + self.lamb * weight)
             new_weights.append(new_weight)
+        self.weights = new_weights
 
     def _backprop(self, yi):
         if yi == 1:
@@ -103,7 +132,8 @@ class NN:
             self.A.append(res)
 
     def _init_bias(self):
-        self.bias = np.random.randn(self.cols)
+        # self.bias = np.random.randn(self.cols)
+        self.bias = np.zeros(self.cols)
 
     def _init_weights(self):
         weights = []

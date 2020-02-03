@@ -69,6 +69,7 @@ class NN:
         for di, weight in zip(self.d, self.weights):
             new_weight = weight + self.lr * (di / self.m + self.lamb * weight)
             new_weights.append(new_weight)
+        self.weights = new_weights
 
     def _backprop(self, yi):
         if yi == 1:
