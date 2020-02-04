@@ -10,44 +10,16 @@ def main():
     Y = df[1].to_numpy()
     Y = np.where((Y == 'M'), 1, 0)
     X = feature_scale(X, mode='standart')
-    # X = X[:, :3]
-    # split to train and test
-    split_index = round(X.shape[0] * 0.8) + 1
-    X_train, X_test = X[:split_index], X[split_index:]
-    Y_train, Y_test = Y[:split_index], Y[split_index:]
-    np.random.seed(42)
     nn = NN()
-    nn.fit(X_train, Y_train)
-    preds = nn.predict(X_test)
-    correct = 0
-    b_num = 0
-    for pred, yi in zip(preds, Y_test):
-        if pred[0] > pred[1]:
-            val = 1
-        else:
-            val = 0
-            b_num += 1
-        if val == yi:
-            correct += 1
-    N = Y_test.shape[0]
-    acc = correct / N
-    print(acc)
-    error = 0
-    for pred, yi in zip(preds, Y_test):
-        if yi == 1:
-            error += np.array([1, 0]) @ np.log(pred)
-        else:
-            error += (1 - np.array([0, 1])) @ np.log(1 - pred)
-    cross_entropy = -error / N
-    print('cross-ectropy error:', cross_entropy)
-
+    nn.fit(X, Y)
 
 class NN:
-    def __init__(self, layers=2):
+    def __init__(self, layers=2, early_stopping=True):
         self.epoches = 0
         self.A = []
         self.weights = []
         self.layers = layers  # number hidden layers
+        self.es = True
         self.bias = []
         self.cols = 0  # columns in dataset
         self._activ = np.vectorize(activ)
@@ -56,10 +28,9 @@ class NN:
         self.d = None
         self.lamb = 0.1
         self.lr = 0.05
-        self.store = False
-        self.history = []
-        self.d = []
         self._batch_size = 5
+        self.prev_epoch_weights = None
+        self.val_loses = []
 
     def predict(self, X_test):
         res = []
@@ -68,31 +39,85 @@ class NN:
             res.append(self._softmax(self.A[-1]))
         return res
 
-    def fit(self, X, Y, epoches=1, batch_size=5):
+    def fit(self, X, Y, epoches=5, batch_size=5, plot=False):
+        np.random.seed(42)
         self.m, self.cols = X.shape
         self._batch_size = batch_size
         self.epoches = epoches
         self._init_weights()
         self._init_bias()
+        split_index = round(X.shape[0] * 0.8) + 1
+        X_train, X_test = X[:split_index], X[split_index:]
+        Y_train, Y_test = Y[:split_index], Y[split_index:]
         start_idx, end_idx = 0, 0
         for epoch in range(self.epoches):
-            if epoch == self.epoches - 1:
-                self.store = True
+            self.prev_epoch_weights = self.weights
             for _ in range(X.shape[0] // batch_size):
                 self._init_d()
-                # try batch
-                X_batch = X[start_idx:end_idx + batch_size]
-                Y_batch = Y[start_idx:end_idx + batch_size]
+                X_batch = X_train[start_idx:end_idx + batch_size]
+                Y_batch = Y_train[start_idx:end_idx + batch_size]
                 for xi, yi in zip(X_batch, Y_batch):
                     self._forward(xi)
                     self._backprop(yi)
-                    if self.store:
-                        self.history.append(self._softmax(self.A[-1]))
-                    # break
                 self._update_weights()
                 start_idx += batch_size
                 end_idx += batch_size
-            # break
+            loss = self._loss(X_train, Y_train)
+            val_lose = self._loss(X_test, Y_test)
+            print(f"epoch {epoch + 1}/{epoches} - loss: {round(loss, 4)} - val_loss: {round(val_lose, 4)}")
+            if self.es and epoch != 0 and self.val_loses[-1] > val_lose:
+                self.weights = self.prev_epoch_weights
+                print('Early stopping happened.')
+                break
+            self.val_loses.append(val_lose)
+        acc = self._accuracy(X_test, Y_test)
+        print(f'Accuracy: {round(acc * 100, 5)}%')
+
+    def _loss(self, X, Y):
+        m = X.shape[0]
+        sum1 = 0
+        for xi, yi in zip(X, Y):
+            if yi == 1:
+                yi_vec = np.array([1, 0])
+            else:
+                yi_vec = np.array([0, 1])
+            self._forward(xi)
+            sum2 = 0
+            for xi_k, yi_k in zip(self.A[-1], yi_vec):
+                if yi_k == 1:
+                    sum2 += yi_k * np.log(xi_k)
+                else:
+                    sum2 += (1 - yi_k) - np.log(1 - xi_k)
+            sum1 += sum2
+        res = -sum1 / m
+        for weight in self.weights:
+            temp = weight ** 2
+            res += temp.sum()
+        return res
+
+    def _accuracy(self, X, Y):
+        preds = self.predict(X)
+        correct = 0
+        for pred, yi in zip(preds, Y):
+            if pred[0] > pred[1]:
+                val = 1
+            else:
+                val = 0
+            if val == yi:
+                correct += 1
+        N = Y.shape[0]
+        return correct / N
+
+    def _cross_entropy(self, X, Y):
+        preds = self.predict(X)
+        error = 0
+        for pred, yi in zip(preds, Y):
+            if yi == 1:
+                error += np.array([1, 0]) @ np.log(pred)
+            else:
+                error += (1 - np.array([0, 1])) @ np.log(1 - pred)
+        N = Y.shape[0]
+        return -error / N
 
     def _update_weights(self):
         new_weights = []
@@ -154,6 +179,14 @@ class NN:
     def _softmax(self, x):
         s = np.exp(x).sum()
         return np.exp(x) / s
+
+    def load_weights(self, weights, bias):
+        # load weights and bias
+        pass
+
+    def save_weights(self):
+        # save weights and bias
+        pass
 
 
 def feature_scale(X, mode='standart'):

@@ -4,6 +4,8 @@
       <w>activ</w>
       <w>backprop</w>
       <w>epoches</w>
+      <w>overfit</w>
+      <w>preds</w>
       <w>softmax</w>
       <w>softmaxes</w>
       <w>standart</w>
