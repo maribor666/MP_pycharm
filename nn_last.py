@@ -1,6 +1,11 @@
 from pprint import pprint
+import pickle as pcl
+import sys
+
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
 df_path = './data.csv'
 
 
@@ -11,9 +16,12 @@ def main():
     Y = np.where((Y == 'M'), 1, 0)
     X = feature_scale(X, mode='standart')
     nn = NN()
-    nn.fit(X, Y)
+    nn.fit(X, Y, plot=False)
+    # nn.fit(X, Y, plot=True)
+
 
 class NN:
+
     def __init__(self, layers=2, early_stopping=True):
         self.epoches = 0
         self.A = []
@@ -31,6 +39,7 @@ class NN:
         self._batch_size = 5
         self.prev_epoch_weights = None
         self.val_loses = []
+        self.loses = []
 
     def predict(self, X_test):
         res = []
@@ -39,7 +48,7 @@ class NN:
             res.append(self._softmax(self.A[-1]))
         return res
 
-    def fit(self, X, Y, epoches=5, batch_size=5, plot=False):
+    def fit(self, X, Y, epoches=5, batch_size=5, plot=False, save=True):  # add option to calc and print validation metrics
         np.random.seed(42)
         self.m, self.cols = X.shape
         self._batch_size = batch_size
@@ -50,6 +59,7 @@ class NN:
         X_train, X_test = X[:split_index], X[split_index:]
         Y_train, Y_test = Y[:split_index], Y[split_index:]
         start_idx, end_idx = 0, 0
+        last_epoch = 0
         for epoch in range(self.epoches):
             self.prev_epoch_weights = self.weights
             for _ in range(X.shape[0] // batch_size):
@@ -63,15 +73,26 @@ class NN:
                 start_idx += batch_size
                 end_idx += batch_size
             loss = self._loss(X_train, Y_train)
+            self.loses.append(loss)
             val_lose = self._loss(X_test, Y_test)
             print(f"epoch {epoch + 1}/{epoches} - loss: {round(loss, 4)} - val_loss: {round(val_lose, 4)}")
+            last_epoch = epoch
             if self.es and epoch != 0 and self.val_loses[-1] > val_lose:
                 self.weights = self.prev_epoch_weights
                 print('Early stopping happened.')
+                self.val_loses.append(val_lose)
                 break
             self.val_loses.append(val_lose)
         acc = self._accuracy(X_test, Y_test)
         print(f'Accuracy: {round(acc * 100, 5)}%')
+        if plot:
+            plt.plot(range(last_epoch + 1), self.val_loses)
+            plt.xlabel('epoch')
+            plt.ylabel('val_lose')
+            plt.show()
+        if save:
+            self.save_weights()
+        self.load_weights()
 
     def _loss(self, X, Y):
         m = X.shape[0]
@@ -132,7 +153,6 @@ class NN:
         else:
             yi_vec = np.array([0, 1])
         last_delta = self.A[-1] - yi_vec
-        # print(last_delta)
         self.deltas = [last_delta]
         rev_weights = self.weights[::-1]
         rev_A = self.A[:-1]
@@ -180,13 +200,20 @@ class NN:
         s = np.exp(x).sum()
         return np.exp(x) / s
 
-    def load_weights(self, weights, bias):
-        # load weights and bias
-        pass
+    def load_weights(self):
+        try:
+            file = open('./weights.pcl', mode='rb').read()
+        except FileNotFoundError:
+            print('There is no file with weights.(must be "./weights.pcl")')
+            sys.exit()
+        weights = pcl.loads(file)
 
     def save_weights(self):
-        # save weights and bias
-        pass
+        weights = {'weights': self.weights, 'bias': self.bias}
+        file = open('./weights.pcl', mode='bw+')
+        pickle_string = pcl.dumps(weights)
+        file.write(pickle_string)
+        file.close()
 
 
 def feature_scale(X, mode='standart'):
