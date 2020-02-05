@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 df_path = './data.csv'
 
+
 def main():
     df = pd.read_csv(df_path, header=None)
     X = df.loc[:, df.columns != 1].to_numpy()
@@ -38,6 +39,7 @@ class NN:
         self.prev_epoch_weights = None
         self.val_loses = []
         self.loses = []
+        self.es = early_stopping
 
     def predict(self, X_test):
         res = []

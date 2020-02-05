@@ -7,6 +7,7 @@ import NN
 
 df_path = './data.csv'
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--df', default=df_path, metavar='df', help='Dataframe path.')
