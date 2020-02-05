@@ -92,7 +92,6 @@ class NN:
             plt.show()
         if save:
             self.save_weights()
-        self.load_weights()
 
     def _loss(self, X, Y):
         m = X.shape[0]
@@ -207,6 +206,8 @@ class NN:
             print('There is no file with weights.(must be "./weights.pcl")')
             sys.exit()
         weights = pcl.loads(file)
+        self.weights = weights['weights']
+        self.bias = weights['bias']
 
     def save_weights(self):
         weights = {'weights': self.weights, 'bias': self.bias}
