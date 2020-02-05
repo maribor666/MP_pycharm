@@ -49,6 +49,8 @@ class NN:
         return res
 
     def calc_metrics(self, X_test, Y_test):
+        cross_entropy = self._cross_entropy(X_test, Y_test)
+        print(f'Cross-entropy error: {cross_entropy}')
         acc = self._accuracy(X_test, Y_test)
         print(f'Accuracy: {round(acc * 100, 5)}%')
         prec = self.precision(X_test, Y_test)
