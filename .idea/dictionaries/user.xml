@@ -5,6 +5,7 @@
       <w>backprop</w>
       <w>epoches</w>
       <w>overfit</w>
+      <w>prec</w>
       <w>preds</w>
       <w>softmax</w>
       <w>softmaxes</w>

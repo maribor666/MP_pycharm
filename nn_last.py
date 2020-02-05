@@ -85,6 +85,12 @@ class NN:
             self.val_loses.append(val_lose)
         acc = self._accuracy(X_test, Y_test)
         print(f'Accuracy: {round(acc * 100, 5)}%')
+        prec = self.precision(X_test, Y_test)
+        print(f'Precision: {round(prec * 100, 5)}%')
+        recall = self.recall(X_test, Y_test)
+        print(f'Recall: {round(recall * 100, 5)}%')
+        f1_score = self.f1_score(X_test, Y_test)
+        print(f'F1 score: {round(f1_score * 100, 5)}%')
         if plot:
             plt.plot(range(last_epoch + 1), self.val_loses)
             plt.xlabel('epoch')
@@ -92,6 +98,41 @@ class NN:
             plt.show()
         if save:
             self.save_weights()
+
+    def f1_score(self, X, Y):
+        prec = self.precision(X, Y)
+        recall = self.recall(X, Y)
+        return (2 * prec * recall) / (prec + recall)
+
+    def recall(self, X, Y):
+        preds = self.predict(X)
+        correct = 0
+        false_negative = 0
+        for pred, yi in zip(preds, Y):
+            if pred[0] > pred[1]:
+                val = 1
+            else:
+                val = 0
+            if val == yi:
+                correct += 1
+            if val == 0 and yi == 1:
+                false_negative += 1
+        return correct / (correct + false_negative)
+
+    def precision(self, X, Y):
+        preds = self.predict(X)
+        correct = 0
+        false_positive = 0
+        for pred, yi in zip(preds, Y):
+            if pred[0] > pred[1]:
+                val = 1
+            else:
+                val = 0
+            if val == yi:
+                correct += 1
+            elif val == 1:
+                false_positive += 1
+        return correct / (correct + false_positive)
 
     def _loss(self, X, Y):
         m = X.shape[0]
